@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TerraScope 3D — Google Earth Experience with Cesium ion</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <!-- Full-screen Cesium Container -->
+    <div id="cesiumContainer"></div>
+
+    <!-- Top Floating Header & Search Bar -->
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-icon">
+          <i data-lucide="globe"></i>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">TerraScope <span class="badge-3d">3D</span></span>
+          <span class="brand-subtitle">Cesium ion Engine</span>
+        </div>
+      </div>
+
+      <div class="search-container">
+        <div class="search-box">
+          <i data-lucide="search" class="search-icon"></i>
+          <input type="text" id="searchInput" placeholder="Search places, landmarks, coordinates (e.g. Tokyo, Grand Canyon, 27.98, 86.92)..." autocomplete="off" />
+          <button id="searchClearBtn" class="search-clear-btn" title="Clear search" style="display: none;">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div id="searchResults" class="search-dropdown" style="display: none;"></div>
+      </div>
+
+      <!-- Quick Landmark Chips -->
+      <div class="quick-chips">
+        <button class="chip chip-disaster" id="quickDisasterChip"><span class="chip-live-dot"></span> Live Disasters</button>
+        <button class="chip" data-flyto="tokyo">Tokyo 3D</button>
+        <button class="chip" data-flyto="manhattan">Manhattan</button>
+        <button class="chip" data-flyto="centralpark">Central Park (Trees)</button>
+        <button class="chip" data-flyto="everest">Mt. Everest</button>
+        <button class="chip" data-flyto="dubai">Burj Khalifa</button>
+        <button class="chip chip-climate" data-flyto="gangotri">Gangotri Glacier</button>
+        <button class="chip chip-climate" data-flyto="amazon">Amazon Basin</button>
+      </div>
+
+      <!-- Ion Token Quick Indicator -->
+      <div class="header-actions">
+        <button id="ionTokenBadge" class="token-badge" title="Cesium ion Access Token Status">
+          <span class="token-dot"></span>
+          <span class="token-label">ion Connected</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Google Earth Left-Hand Icon Rail -->
+    <nav class="tool-rail">
+      <button class="rail-btn active" data-panel="none" title="Globe View">
+        <i data-lucide="navigation"></i>
+      </button>
+      <button class="rail-btn" data-panel="search" title="Search & Explore">
+        <i data-lucide="search"></i>
+      </button>
+      <button class="rail-btn" data-panel="voyager" title="Voyager Guided Tours">
+        <i data-lucide="compass"></i>
+      </button>
+      <button class="rail-btn dice-btn" id="luckyBtn" title="I'm Feeling Lucky!">
+        <i data-lucide="dices"></i>
+      </button>
+      <button class="rail-btn" data-panel="layers" title="Map Layers & 3D Styles">
+        <i data-lucide="layers"></i>
+      </button>
+      <button class="rail-btn climate-rail-btn" data-panel="climate" title="Climate & Environmental Visualizer">
+        <i data-lucide="leaf"></i>
+      </button>
+      <button class="rail-btn disaster-rail-btn" data-panel="disasters" title="Live Natural Disaster Feed">
+        <i data-lucide="alert-triangle"></i>
+        <span class="live-dot-pulse"></span>
+      </button>
+      <button class="rail-btn veg-rail-btn" data-panel="vegetation" title="Vegetation & Forest Generator">
+        <i data-lucide="trees"></i>
+      </button>
+      <button class="rail-btn" data-panel="measure" title="Measure Distance & Area">
+        <i data-lucide="ruler"></i>
+      </button>
+      <button class="rail-btn" data-panel="placemarks" title="Projects & Saved Places">
+        <i data-lucide="bookmark"></i>
+      </button>
+      <button class="rail-btn" data-panel="lighting" title="Sunlight & Time of Day">
+        <i data-lucide="sun"></i>
+      </button>
+      <div class="rail-spacer"></div>
+      <button class="rail-btn" data-panel="settings" title="Settings & Ion Access Token">
+        <i data-lucide="settings"></i>
+      </button>
+    </nav>
+
+    <!-- Slide-out Drawer Panel Container -->
+    <aside id="sideDrawer" class="side-drawer" style="display: none;">
+      <div class="drawer-header">
+        <h2 id="drawerTitle" class="drawer-title">Panel Title</h2>
+        <button id="closeDrawerBtn" class="close-drawer-btn" title="Close Panel">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div id="drawerContent" class="drawer-content">
+        <!-- Injected dynamically per active tool -->
+      </div>
+    </aside>
+
+    <!-- Google Earth Right-side Camera & Navigation Controls -->
+    <div class="earth-controls">
+      <!-- 3D Compass Rose -->
+      <div class="compass-wrapper" id="compassBtn" title="Click to Reset View to True North">
+        <div class="compass-dial" id="compassDial">
+          <div class="compass-needle-n">N</div>
+          <div class="compass-needle-s"></div>
+        </div>
+      </div>
+
+      <!-- Toggle Disaster Markers On/Off -->
+      <button id="toggleDisasterMarkersBtn" class="earth-btn active" title="Toggle Disaster Markers On/Off">
+        <i data-lucide="bell"></i>
+      </button>
+
+      <!-- 2D / 3D Toggle -->
+      <button id="toggle3DBtn" class="earth-btn" title="Toggle 2D / 3D Oblique View">
+        <span class="btn-text-bold">3D</span>
+      </button>
+
+      <!-- Street / Ground Level View -->
+      <button id="groundViewBtn" class="earth-btn" title="Toggle Ground-Level Perspective">
+        <i data-lucide="eye"></i>
+      </button>
+
+      <!-- Fly to Geolocation -->
+      <button id="myLocationBtn" class="earth-btn" title="Fly to My Current Location">
+        <i data-lucide="map-pin"></i>
+      </button>
+
+      <!-- Zoom In / Out -->
+      <div class="zoom-group">
+        <button id="zoomInBtn" class="earth-btn" title="Zoom In">
+          <i data-lucide="plus"></i>
+        </button>
+        <button id="zoomOutBtn" class="earth-btn" title="Zoom Out">
+          <i data-lucide="minus"></i>
+        </button>
+      </div>
+
+      <!-- Fullscreen Toggle -->
+      <button id="fullscreenBtn" class="earth-btn" title="Toggle Fullscreen">
+        <i data-lucide="maximize"></i>
+      </button>
+    </div>
+
+    <!-- Active Tour / Story Floating Card -->
+    <div id="tourCard" class="tour-card" style="display: none;">
+      <div class="tour-card-header">
+        <span class="tour-tag" id="tourCategoryTag">Heritage</span>
+        <button id="closeTourBtn" class="tour-close-btn" title="Exit Tour">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <h3 id="tourStopTitle" class="tour-stop-title">Grand Canyon</h3>
+      <div class="tour-location" id="tourStopLocation">Arizona, United States</div>
+      <p id="tourStopDesc" class="tour-stop-desc">Carved over millions of years by the Colorado River.</p>
+      
+      <div id="tourFactsList" class="tour-facts-list">
+        <!-- Bullet points -->
+      </div>
+
+      <div class="tour-footer">
+        <div class="tour-pagination">
+          <button id="tourPrevBtn" class="tour-nav-btn"><i data-lucide="chevron-left"></i> Prev</button>
+          <span id="tourProgressText" class="tour-progress-text">1 of 5</span>
+          <button id="tourNextBtn" class="tour-nav-btn">Next <i data-lucide="chevron-right"></i></button>
+        </div>
+        <button id="tourOrbitBtn" class="tour-orbit-btn" title="Cinematic 360° Orbit">
+          <i data-lucide="refresh-cw"></i> Orbit
+        </button>
+      </div>
+    </div>
+
+    <!-- Floating Disaster Intelligence Card -->
+    <div id="disasterCard" class="disaster-card" style="display: none;">
+      <div class="disaster-card-header">
+        <div class="disaster-type-pill" id="disasterTypeBadge">
+          <i data-lucide="alert-triangle" id="disasterIcon"></i>
+          <span id="disasterTypeName">Earthquake</span>
+        </div>
+        <button id="closeDisasterCard" class="card-close-btn" title="Close Card">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <h3 id="disasterTitle" class="disaster-card-title">M 6.4 - Near Coast of Honshu, Japan</h3>
+      <div class="disaster-place" id="disasterPlace">Off coast of Honshu, Japan</div>
+      
+      <div class="disaster-stats-grid">
+        <div class="dstat-item">
+          <span class="dstat-label">MAGNITUDE / SEVERITY</span>
+          <span class="dstat-val" id="disasterMagnitude">M 6.4</span>
+        </div>
+        <div class="dstat-item">
+          <span class="dstat-label">RECORDED TIME</span>
+          <span class="dstat-val" id="disasterTime">2 hours ago</span>
+        </div>
+        <div class="dstat-item">
+          <span class="dstat-label">COORDINATES</span>
+          <span class="dstat-val" id="disasterCoords">38.45° N, 142.34° E</span>
+        </div>
+        <div class="dstat-item">
+          <span class="dstat-label">DATA SOURCE</span>
+          <span class="dstat-val" id="disasterSource">USGS Earthquakes</span>
+        </div>
+      </div>
+
+      <div class="disaster-card-footer">
+        <button id="disasterWindyBtn" class="btn btn-windy" title="Open Live Windy Cyclone / Atmospheric Radar">
+          <i data-lucide="wind"></i> Windy Radar
+        </button>
+        <a id="disasterZoomEarthBtn" href="https://zoom.earth/maps/satellite/" target="_blank" rel="noopener" class="btn btn-zoom-earth" title="Track Live Cyclone Satellite on Zoom Earth">
+          <i data-lucide="satellite"></i> Zoom Earth
+        </a>
+        <button id="disasterIsolateBtn" class="btn btn-secondary" title="Hide faraway markers to focus on this site">
+          <i data-lucide="focus"></i> Focus Site
+        </button>
+        <button id="disasterOrbitBtn" class="btn btn-secondary">
+          <i data-lucide="refresh-cw"></i> Orbit
+        </button>
+        <a id="disasterExternalLink" href="#" target="_blank" rel="noopener" class="btn btn-primary">
+          Incident Source <i data-lucide="external-link"></i>
+        </a>
+      </div>
+    </div>
+
+    <!-- Placemark Creation Modal -->
+    <div id="placemarkModal" class="modal-overlay" style="display: none;">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3>Save 3D Placemark</h3>
+          <button id="closePlacemarkModal" class="modal-close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Placemark Name</label>
+            <input type="text" id="pinTitleInput" placeholder="e.g. My Favorite View, Climate Observation Point" />
+          </div>
+          <div class="form-group">
+            <label>Notes / Description</label>
+            <textarea id="pinNotesInput" rows="3" placeholder="Add environmental observations or travel notes..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Color Theme</label>
+            <div class="color-picker-row">
+              <label class="color-option"><input type="radio" name="pinColor" value="#ea4335" checked><span class="color-swatch red"></span></label>
+              <label class="color-option"><input type="radio" name="pinColor" value="#4285f4"><span class="color-swatch blue"></span></label>
+              <label class="color-option"><input type="radio" name="pinColor" value="#34a853"><span class="color-swatch green"></span></label>
+              <label class="color-option"><input type="radio" name="pinColor" value="#fbbc05"><span class="color-swatch yellow"></span></label>
+              <label class="color-option"><input type="radio" name="pinColor" value="#a142f4"><span class="color-swatch purple"></span></label>
+            </div>
+          </div>
+          <div class="coordinates-preview" id="pinCoordsPreview">
+            Coordinates: Lat 0.000°, Lon 0.000°
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="cancelPinBtn" class="btn btn-secondary">Cancel</button>
+          <button id="savePinBtn" class="btn btn-primary">Save Pin</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cesium Ion Token Settings Modal -->
+    <div id="tokenModal" class="modal-overlay" style="display: none;">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3>Cesium ion Configuration</h3>
+          <button id="closeTokenModal" class="modal-close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-desc">
+            TerraScope streams high-resolution 3D World Terrain, OSM 3D Buildings, and Google Photorealistic 3D Tiles directly from <strong>Cesium ion</strong>.
+          </p>
+          <div class="form-group">
+            <label>Cesium ion Access Token</label>
+            <input type="password" id="ionTokenInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
+            <span class="field-hint">You can get a free token from your <a href="https://ion.cesium.com/tokens" target="_blank" rel="noopener">Cesium ion Dashboard <i data-lucide="external-link"></i></a></span>
+          </div>
+          <div id="tokenStatusAlert" class="status-alert"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="resetDemoTokenBtn" class="btn btn-secondary">Use Default Demo Token</button>
+          <button id="saveTokenBtn" class="btn btn-primary">Save & Reload Globe</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Windy.com Live Atmospheric & Cyclone Radar Modal -->
+    <div id="windyModal" class="modal-overlay" style="display: none;">
+      <div class="modal-box windy-modal-box">
+        <div class="modal-header">
+          <div class="windy-header-left">
+            <span class="windy-logo-badge">WINDY.COM</span>
+            <h3 id="windyModalTitle">Live Cyclone & Atmospheric Radar</h3>
+          </div>
+          <div class="windy-header-actions">
+            <button id="closeWindyModal" class="modal-close"><i data-lucide="x"></i></button>
+          </div>
+        </div>
+        
+        <!-- Windy Layer Tabs -->
+        <div class="windy-layer-tabs">
+          <button class="wtab-btn active" data-woverlay="wind">
+            <i data-lucide="wind"></i> Cyclones & Winds
+          </button>
+          <button class="wtab-btn" data-woverlay="radar">
+            <i data-lucide="radar"></i> Weather Radar
+          </button>
+          <button class="wtab-btn" data-woverlay="rain">
+            <i data-lucide="cloud-rain"></i> Rain & Thunder
+          </button>
+          <button class="wtab-btn" data-woverlay="satellite">
+            <i data-lucide="satellite"></i> Visible Satellite
+          </button>
+          <button class="wtab-btn" data-woverlay="cosc">
+            <i data-lucide="flame"></i> Fire Smoke / CO
+          </button>
+          <button class="wtab-btn" data-woverlay="waves">
+            <i data-lucide="waves"></i> Storm Surge / Waves
+          </button>
+        </div>
+
+        <div class="windy-frame-container">
+          <iframe id="windyIframe" src="" frameborder="0" allowfullscreen></iframe>
+        </div>
+
+        <div class="modal-footer" style="justify-content: space-between;">
+          <div class="windy-info-text" id="windyCoordsDisplay">
+            Coordinates: Lat 0.00°, Lon 0.00° • Real-time ECMWF atmospheric model
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <a id="windyZoomEarthLink" href="https://zoom.earth/maps/satellite/" target="_blank" rel="noopener" class="btn btn-zoom-earth" title="Open this location in Zoom Earth HD Satellite">
+              <i data-lucide="satellite"></i> Zoom Earth HD <i data-lucide="external-link"></i>
+            </a>
+            <a id="windyDirectLink" href="https://www.windy.com" target="_blank" rel="noopener" class="btn btn-secondary">
+              Open in Windy Fullscreen <i data-lucide="external-link"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Telemetry HUD Bar -->
+    <footer class="telemetry-bar">
+      <div class="telemetry-item">
+        <span class="telemetry-label">CURSOR</span>
+        <span id="hudCoords" class="telemetry-val">Lat: -- Lon: --</span>
+      </div>
+      <div class="telemetry-item">
+        <span class="telemetry-label">TERRAIN ELEV</span>
+        <span id="hudElev" class="telemetry-val">-- m</span>
+      </div>
+      <div class="telemetry-item">
+        <span class="telemetry-label">CAMERA EYE ALT</span>
+        <span id="hudCameraAlt" class="telemetry-val">10,240 km</span>
+      </div>
+      <div class="telemetry-item">
+        <span class="telemetry-label">HEADING / TILT</span>
+        <span id="hudHeadingPitch" class="telemetry-val">0° / -90°</span>
+      </div>
+      <div class="telemetry-spacer"></div>
+      <div class="telemetry-item time-scrub-item">
+        <i data-lucide="sun" class="hud-sun-icon"></i>
+        <input type="range" id="quickTimeSlider" min="0" max="24" step="0.1" value="12" title="Scrub Sunlight" />
+        <span id="quickTimeDisplay" class="telemetry-val">12:00</span>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
